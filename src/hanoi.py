@@ -78,6 +78,9 @@ class Hanoi:
 	def show_step_list(self):
 		for i in range (0, len(self.step_list)):
 			print str(self.step_list[i][0]) + ' -> ' + str(self.step_list[i][1]) + '(' + str(self.step_list[i][2]) + ', ' + str(self.step_list[i][3]) + ')'  
+	
+	def get_step_list(self):
+		return self.step_list
 
 if __name__ == '__main__':
 	obj = Hanoi(4, 0)
