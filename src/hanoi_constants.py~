@@ -1,0 +1,29 @@
+#!/usr/bin/env python
+
+LEFT = 0	
+CENTER = 1	# macros for rods
+RIGHT = 2
+DISKS_NUMBER = 4 	# macro for number of disks
+STARTING_POSE = [-2.5289884940308865e-06, -1.5666245683871824, 0.07074496963619269, -0.07490522003488498, 4.712122248715821, -1.5710232858348003] 
+RED_DISK = 0.0665
+YELLOW_DISK = 0.071
+GREEN_DISK = 0.077
+BLUE_DISK = 0.080
+MAX_DISK_WIDTH = 0.081	#  maximal disk width in metres
+DISK_STOCK = 0.007	# zapas na szerokosc chwytaka przy podejmowaniu krazka odpowiedniego koloru
+FX = 1052.243505
+FY = 1042.403222
+CX = 654.993030
+CY = 480.578321
+Z = 0.165 
+#visualisation part
+ROD_SCALE_XYZ = [0.01, 0.01, 0.095]
+ROD_COLOR_RGB = [0.75, 0.7, 0.5]
+BASE_SCALE_XYZ = [0.079, 0.23, 0.014]
+DISK_SIZE = [[0.027, 0.027, 0.01], [0.031, 0.031, 0.01], [0.036, 0.036, 0.01], [0.04, 0.04, 0.01]]
+DISK_COLOR = [[1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+DISTANCE_ROD =  -0.099 # -0.108 + 0.009
+DIFF_DISTANCE_BASE = -0.044 # -0.099 - 0.044 = -0.143
+TOP_SCALE_Z = 0.01
+TOP_COLOR_RGB = [1.0, 0.4, 0.4] 
+TOP_DIFF_TO_ROD = 0.0475

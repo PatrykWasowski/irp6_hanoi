@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 #from irpos import *
 #from math import *
-
-LEFT = 0	
-CENTER = 1	# macros for rods
-RIGHT = 2
+from hanoi_constants import *
 
 class Hanoi:
 	rods = []	
@@ -17,7 +14,6 @@ class Hanoi:
 	starting_rod = -1
 	disks_number = 0
 	step_list = []
-	#irpos = IRPOS("IRpOS", "Irp6p", 6, "irp6p_manager")
 
 	def __init__(self, nr, rod):
 		self.disks_number = nr 
