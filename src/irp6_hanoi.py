@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from rospy import *
+import rospy
 from irpos import *
 from hanoi import *
 from hanoi_constants import *
@@ -75,9 +75,14 @@ class Irp6Hanoi:
 		self.irpos.move_to_joint_position(STARTING_POSE, 15.0)
 		self.irpos.tfg_to_joint_position(RED_DISK+0.009, 3.0)
 		check_red = 1
-		rospy.sleep(2.)
+		rospy.sleep(2.0)
 		actual = self.irpos.get_cartesian_pose()
 		self.visualisator = VisualisationBuilder(actual.position.z)
+		model = Hanoi(DISKS_NUMBER, irp.get_starting_rod())
+		model.solve_hanoi()
+		model.show_step_list()
+		self.set_step_list(model.get_step_list())
+
 
 	def got_starting_rod(self):
 		global starting_rod		
@@ -138,7 +143,6 @@ class Irp6Hanoi:
 		rods = self.sort_points(rods)
 
 		# choosing wanted point from received list of points of RodsDetection 
-		# and computing position of rods for visualisation
 
 		if(end == LEFT):
 			wanted_point = [ rods[0], rods[1] ]
@@ -168,27 +172,29 @@ class Irp6Hanoi:
 
 		rods = self.sort_points(rods)
 
+		actual = self.irpos.get_cartesian_pose()
+
 		if(end == LEFT):
 			rod0 = LEFT
-			position0 = [Z / FX * (rods[0] - src_center[0]) , Z / FY * (rods[1] - src_center[1])]
+			position0 = [Z / FY * (rods[1] - src_center[1]) + actual.position.x, Z / FX * (rods[0] - src_center[0]) + actual.position.y]
 			rod1 = CENTER
-			position1 = [Z / FX * (rods[2] - src_center[0]) , Z / FY * (rods[3] - src_center[1])]
+			position1 = [Z / FY * (rods[3] - src_center[1]) + actual.position.x, Z / FX * (rods[2] - src_center[0]) + actual.position.y]
 			rod2 = -1
 			position2 = [0, 0]
 		elif(end == RIGHT):
 			rod0 = -1
 			position0 = [0, 0]
 			rod1 = CENTER
-			position1 = [Z / FX * (rods[0] - src_center[0]) , Z / FY * (rods[1] - src_center[1])]
+			position1 = [Z / FY * (rods[1] - src_center[1]) + actual.position.x, Z / FX * (rods[0] - src_center[0]) + actual.position.y]
 			rod2 = RIGHT
-			position1 = [Z / FX * (rods[2] - src_center[0]) , Z / FY * (rods[3] - src_center[1])]
+			position1 = [Z / FY * (rods[3] - src_center[1]) + actual.position.x, Z / FX * (rods[2] - src_center[0]) + actual.position.y]
 		else:
 			rod0 = LEFT
-			position0 = [Z / FX * (rods[0] - src_center[0]) , Z / FY * (rods[1] - src_center[1])]
+			position0 = [Z / FY * (rods[1] - src_center[1]) + actual.position.x, Z / FX * (rods[0] - src_center[0]) + actual.position.y]
 			rod1 = CENTER			
-			position1 = [Z / FX * (rods[2] - src_center[0]) , Z / FY * (rods[3] - src_center[1])]
+			position1 = [Z / FY * (rods[3] - src_center[1]) + actual.position.x, Z / FX * (rods[2] - src_center[0]) + actual.position.y]
 			rod2 = RIGHT
-			position1 = [Z / FX * (rods[4] - src_center[0]) , Z / FY * (rods[5] - src_center[1])]
+			position1 = [Z / FY * (rods[5] - src_center[1]) + actual.position.x, Z / FX * (rods[4] - src_center[0]) + actual.position.y]
 
 		self.visualisator.set_rod_positions(rod0, position0, rod1, position1, rod2, position2)
 
@@ -201,21 +207,15 @@ class Irp6Hanoi:
 
 		print 'move_to_rod(' + str(end) + ")"
 		
-		#if(not self.carrying_disk):
 		if(self.rod_position[end] != [0, 0, 0, 0, 0, 0]):
 			self.irpos.move_to_joint_position(self.rod_position[end], 6.0)	# when position of rod is known already		
 			print "Pozycja juz jest znana, wiec sprobuje dawnego zapisu"
 		else:
 			diff = (end - self.current_rod) * 0.07 
 			self.irpos.move_rel_to_cartesian_pose(6.0,  Pose(Point(0.0, diff, 0.0), Quaternion(0.0, 0.0, 0.0, 1.0)))
-			print "Jeszcze nie znam pozycji, probuje na oko przesunac " + str(diff) 			
+			print "Jeszcze nie znam pozycji, probuje na oko przesunac " + str(diff) 
+		rospy.sleep(1.5)			
 
-		#else:
-			# if disk is carrying and there's need to take it from LEFT to RIGHT, firstly irp will move to CENTER	
-		#	if(abs(self.current_rod - end) == 2):
-		#		self.irpos.move_to_joint_position(self.rod_position[CENTER], 6.0)
-		#		self.current_rod = CENTER				
-		#		print "Przenies nad CENTER"
 		if(self.carrying_disk):
 			self.irpos.move_rel_to_cartesian_pose(1.0,  Pose(Point(-0.025, 0.0, 0.0), Quaternion(0.0, 0.0, 0.0, 1.0)))
 		rospy.sleep(2.5)	# sleep for camera image stability 
@@ -262,11 +262,13 @@ class Irp6Hanoi:
 	def grabbing_height(self, disk, rod):
 		hg = 0.12 - 0.014
 
+		print "Len(rod_cont[" + str(rod) + "]) = " + str(len(self.rod_content[rod]))
+
 		for i in range (0, len(self.rod_content[rod]) - 1):
 			if(self.rod_content[rod][i] == 2):
 				hg = hg - 0.0118
 			else:
-				hg =hg - 0.01		
+				hg = hg - 0.01		
 
 		return hg
 
@@ -290,7 +292,7 @@ class Irp6Hanoi:
 
 		actual = self.irpos.get_cartesian_pose()
 		#self.add_rviz_disks(self.current_disk, self.current_rod, actual, False)
-		self.visualisator.put_disk(disk)
+		self.visualisator.put_disk(disk, self.current_rod)
 
 		self.irpos.tfg_to_joint_position(MAX_DISK_WIDTH+DISK_STOCK, 3.0)
 		print "Upuscilem dysk"
@@ -439,24 +441,20 @@ class Irp6Hanoi:
 		self.rviz_pub.publish(marker)
 
 	def add_disk_to_rod(self, disk, rod):
-		#actual = self.irpos.get_cartesian_pose()
-		#self.add_rviz_disks(disk, rod, actual, False) 
 		self.rod_content[rod].append(disk)
 		
 	def solve_hanoi(self):
 		global starting_rod
 
 		self.move_to_rod(2)
-		#self.add_rviz_rod(2)
 		self.move_to_rod(1)
-		#self.add_rviz_rod(1)
 		self.move_to_rod(0)
-		#self.add_rviz_rod(0)
 		self.rviz_enable = 1
 
 		for i in range(4, 0, -1):
-			self.add_disk_to_rod(i, starting_rod)
+			self.rod_content[starting_rod].append(i)
 
+		print "Wielkosc starting_rod " + str(len(self.rod_content[starting_rod]))
 		print str(len(self.step_list)) + " krokow do wykonania"
 
 		for i in range(0, len(self.step_list)):
@@ -472,12 +470,6 @@ if __name__ == '__main__':
 	rospy.sleep(5.0)	
 	
 	print "Starting rod: " + str(irp.get_starting_rod()) 
-
-	model = Hanoi(DISKS_NUMBER, irp.get_starting_rod())
-	model.solve_hanoi()
-	model.show_step_list()
-	irp.set_step_list(model.get_step_list())
-
 	print "Koniec ustawiania"
 	
 	irp.solve_hanoi()
