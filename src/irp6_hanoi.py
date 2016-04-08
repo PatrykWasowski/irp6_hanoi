@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 import rospy
+import numpy
+import sys 	# sys.exit()
 from irpos import *
 from hanoi import *
 from hanoi_constants import *
@@ -65,8 +67,6 @@ class Irp6Hanoi:
 		self.step_list = steps
 
 	def get_starting_rod(self):
-		global starting_rod
-
 		return starting_rod
 
 	def move_to_starting_pose(self):
@@ -85,8 +85,6 @@ class Irp6Hanoi:
 
 
 	def got_starting_rod(self):
-		global starting_rod		
-
 		if(starting_rod == -1000):
 			return 0
 		else:
@@ -105,7 +103,6 @@ class Irp6Hanoi:
 		ret_l = []
 
 		while(len(l) > 0):
-			print "Pairs nr: " + str(pairs_nr)
 			pairs.append( [ l.pop(), l.pop() ] )		
 			xs.append( pairs[pairs_nr][0] )	
 			pairs_nr += 1
@@ -117,7 +114,6 @@ class Irp6Hanoi:
 
 		while(j < pairs_nr):
 			ret_l.append(xs[j])
-
 			while(i < pairs_nr):
 				if(xs[j] == pairs[i][0]):
 					ret_l.append(pairs[i][1])
@@ -140,7 +136,11 @@ class Irp6Hanoi:
 
 		wanted_point = []
 		rods_nr = len(rods) / 2	
-		rods = self.sort_points(rods)
+		if(rods_nr == 0):
+			print "Nie odnaleziono wiezy"
+			sys.exit()
+		else:
+			rods = self.sort_points(rods)
 
 		# choosing wanted point from received list of points of RodsDetection 
 
@@ -149,7 +149,7 @@ class Irp6Hanoi:
 		elif(end == RIGHT):
 			wanted_point = [ rods[(rods_nr - 1) * 2], rods[(rods_nr - 1) * 2 + 1] ]
 		else:
-				wanted_point = [ rods[2], rods[3] ]
+			wanted_point = [ rods[2], rods[3] ]
 			
 		# calculating move from found wanted point
 
@@ -174,28 +174,40 @@ class Irp6Hanoi:
 
 		actual = self.irpos.get_cartesian_pose()
 
-		if(end == LEFT):
+		if(end == LEFT or end == CENTER):
 			rod0 = LEFT
 			position0 = [Z / FY * (rods[1] - src_center[1]) + actual.position.x, Z / FX * (rods[0] - src_center[0]) + actual.position.y]
 			rod1 = CENTER
 			position1 = [Z / FY * (rods[3] - src_center[1]) + actual.position.x, Z / FX * (rods[2] - src_center[0]) + actual.position.y]
-			rod2 = -1
-			position2 = [0, 0]
-		elif(end == RIGHT):
-			rod0 = -1
-			position0 = [0, 0]
+
+			ratio = (rods[2] - rods[0]) / (rods[3] - rods[1]) 
+			alpha = numpy.arctan(ratio)
+			dx = numpy.cos(alpha) * ROD_DISTANCE			
+			dy = numpy.sin(alpha) * ROD_DISTANCE
+			if(end == LEFT):
+				position1 = [ position0[0] - dx, position0[1] - dy]
+
+			else:
+				position0 = [position1[0] + dx, position1[1] + dy]
+
+			rod2 = RIGHT
+			position2 = [position1[0] - dx, position1[1] - dy]
+		else:
 			rod1 = CENTER
 			position1 = [Z / FY * (rods[1] - src_center[1]) + actual.position.x, Z / FX * (rods[0] - src_center[0]) + actual.position.y]
 			rod2 = RIGHT
-			position1 = [Z / FY * (rods[3] - src_center[1]) + actual.position.x, Z / FX * (rods[2] - src_center[0]) + actual.position.y]
-		else:
-			rod0 = LEFT
-			position0 = [Z / FY * (rods[1] - src_center[1]) + actual.position.x, Z / FX * (rods[0] - src_center[0]) + actual.position.y]
-			rod1 = CENTER			
-			position1 = [Z / FY * (rods[3] - src_center[1]) + actual.position.x, Z / FX * (rods[2] - src_center[0]) + actual.position.y]
-			rod2 = RIGHT
-			position1 = [Z / FY * (rods[5] - src_center[1]) + actual.position.x, Z / FX * (rods[4] - src_center[0]) + actual.position.y]
+			position2 = [Z / FY * (rods[3] - src_center[1]) + actual.position.x, Z / FX * (rods[2] - src_center[0]) + actual.position.y]
 
+			ratio = (rods[2] - rods[0]) / (rods[3] - rods[1]) 
+			alpha = numpy.arctan(ratio)
+			dx = numpy.cos(alpha) * ROD_DISTANCE			
+			dy = numpy.sin(alpha) * ROD_DISTANCE
+
+			position1 = [position2[0] + dx, position2[1] + dy]
+
+			rod0 = LEFT
+			position0 = [position1[0] + dx, position1[1] + dy]
+		
 		self.visualisator.set_rod_positions(rod0, position0, rod1, position1, rod2, position2)
 
 		for i in range(3):
@@ -204,42 +216,51 @@ class Irp6Hanoi:
 		self.visualisator.draw_all()
 
 	def move_to_rod(self, end):		
-
 		print 'move_to_rod(' + str(end) + ")"
 		
 		if(self.rod_position[end] != [0, 0, 0, 0, 0, 0]):
-			self.irpos.move_to_joint_position(self.rod_position[end], 6.0)	# when position of rod is known already		
+			self.irpos.move_to_joint_position(self.rod_position[end], 4.0)	# when position of rod is known already		
 			print "Pozycja juz jest znana, wiec sprobuje dawnego zapisu"
 		else:
-			diff = (end - self.current_rod) * 0.07 
-			self.irpos.move_rel_to_cartesian_pose(6.0,  Pose(Point(0.0, diff, 0.0), Quaternion(0.0, 0.0, 0.0, 1.0)))
+			diff = (end - self.current_rod) * ROD_DISTANCE
+			self.irpos.move_rel_to_cartesian_pose(4.0,  Pose(Point(0.0, diff, 0.0), Quaternion(0.0, 0.0, 0.0, 1.0)))
 			print "Jeszcze nie znam pozycji, probuje na oko przesunac " + str(diff) 
-		rospy.sleep(1.5)			
+		
+		rospy.sleep(2.5)			
 
 		if(self.carrying_disk):
 			self.irpos.move_rel_to_cartesian_pose(1.0,  Pose(Point(-0.025, 0.0, 0.0), Quaternion(0.0, 0.0, 0.0, 1.0)))
-		rospy.sleep(2.5)	# sleep for camera image stability 
-
-		# first move has to be done, next moves depends on carrying disk
-
-		self.compute_move(end)	
-		self.irpos.move_rel_to_cartesian_pose(2.0, Pose(Point(-1*self.move[1], self.move[0], 0.0), Quaternion(0.0, 0.0, 0.0, 1.0)))	
-		rospy.sleep(1.5)
-
-		while (self.is_above == 0 and self.carrying_disk == 0):					
-			self.compute_move(end)			
+			rospy.sleep(2.0)
+			self.compute_move(end)
+			while((abs(self.move[1]) - 0.025) > 0.005 or abs(self.move[0]) > 0.005):
+				self.irpos.move_rel_to_cartesian_pose(2.0, Pose(Point(-1*self.move[1], self.move[0], 0.0), Quaternion(0.0, 0.0, 0.0, 1.0)))
+				self.irpos.move_rel_to_cartesian_pose(1.0,  Pose(Point(-0.025, 0.0, 0.0), Quaternion(0.0, 0.0, 0.0, 1.0)))
+				rospy.sleep(2.0)
+				self.compute_move(end)
 			self.irpos.move_rel_to_cartesian_pose(2.0, Pose(Point(-1*self.move[1], self.move[0], 0.0), Quaternion(0.0, 0.0, 0.0, 1.0)))
-			print "Przesuwam " + str(self.move[1]) + " i " + str(self.move[0])								
-			rospy.sleep(2.)			
+			self.current_rod = end
+			 
+	
+		# first move has to be done, next moves depends on carrying disk
+		else:
+			self.compute_move(end)	
+			self.irpos.move_rel_to_cartesian_pose(2.0, Pose(Point(-1*self.move[1], self.move[0], 0.0), Quaternion(0.0, 0.0, 0.0, 1.0)))	
+			rospy.sleep(1.5)
+
+			while (self.is_above == 0):					
+				self.compute_move(end)			
+				self.irpos.move_rel_to_cartesian_pose(2.0, Pose(Point(-1*self.move[1], self.move[0], 0.0), Quaternion(0.0, 0.0, 0.0, 1.0)))
+				print "Przesuwam " + str(self.move[1]) + " i " + str(self.move[0])								
+				rospy.sleep(2.0) 				
 			
-		if(self.is_above):
-			self.is_above = 0
-			self.rod_position[end] = self.irpos.get_joint_position()
+			if(self.is_above):
+				self.is_above = 0
+				self.rod_position[end] = self.irpos.get_joint_position()
 			
-		if(self.rviz_enable == 1):		
-			self.update_rviz(end)
-		self.current_rod = end
-		print "Dotarlem nad"	
+			if(self.rviz_enable == 1):		
+				self.update_rviz(end)
+			self.current_rod = end
+			print "Dotarlem nad"	
 		
 	def get_disk_size(self, disk):
 		if(disk == 1):
@@ -282,21 +303,26 @@ class Irp6Hanoi:
 		print "Zlapalem dysk"
 
 		#self.add_rviz_disks(disk, rod, 0, True)
-		self.visualisator.move_disk(disk)
+		self.visualisator.move_disk(disk, rod)
+		self.rod_content[rod].pop()
 
 		self.irpos.move_rel_to_cartesian_pose(6.0, Pose(Point(0.0, 0.0, (-1)*height + 0.003), Quaternion(0.0, 0.0, 0.0, 1.0)))
 					
-	def leave_disk(self, disk):
+	def leave_disk(self, disk, rod):
 		print "Zrzucam dysk"
 		self.irpos.move_rel_to_cartesian_pose_with_contact(3.0, Pose(Point(0.0, 0.0, 0.03), Quaternion(0.0, 0.0, 0.0, 1.0)), Wrench(Vector3(0.0,0.0,8.0),Vector3(0.0,0.0,0.0)))
-
-		actual = self.irpos.get_cartesian_pose()
-		#self.add_rviz_disks(self.current_disk, self.current_rod, actual, False)
-		self.visualisator.put_disk(disk, self.current_rod)
-
+		
+		self.visualisator.put_disk(disk, rod)
 		self.irpos.tfg_to_joint_position(MAX_DISK_WIDTH+DISK_STOCK, 3.0)
 		print "Upuscilem dysk"
-		self.irpos.move_rel_to_cartesian_pose(3.0, Pose(Point(0.0, 0.0, -0.03), Quaternion(0.0, 0.0, 0.0, 1.0)))
+		self.irpos.move_rel_to_cartesian_pose(3.0, Pose(Point(0.0, 0.0, -0.03), Quaternion(0.0, 0.0, 0.0, 1.0)))		
+	
+		self.rod_content[rod].append(disk)
+		self.rod_position[rod] = self.irpos.get_joint_position()		
+
+		rospy.sleep(1.5)
+
+		self.update_rviz(rod)
 
 	def shift_disk(self, src, dst, disk, disks_below):
 		print "Shift disk (" + str(src) + ", " + str(dst) + ", " + str(disk) + ", " + str(disks_below) +  ")"	
@@ -305,24 +331,17 @@ class Irp6Hanoi:
 		
 		self.move_to_rod(src) 	
 		
-		#self.add_rviz_rod(self.current_rod)
-
 		self.grab_disk(disk, disks_below, src)
-		
-		taken_disk = self.rod_content[src].pop()	
+			
 		self.carrying_disk = 1
 		self.current_disk = disk		
 		self.rod_position[src] = self.irpos.get_joint_position()
 		
 		self.move_to_rod(dst)
 
-		#self.add_rviz_rod(self.current_rod)
-
-		self.leave_disk(disk)
+		self.leave_disk(disk, dst)
 		self.carrying_disk = 0	
-		self.rod_position[dst] = self.irpos.get_joint_position()
-
-		self.rod_content[dst].append(taken_disk)
+				
 
 	def show_rod_content(self, nr):
 		for i in range(len(self.rod_content[nr])):
@@ -444,8 +463,6 @@ class Irp6Hanoi:
 		self.rod_content[rod].append(disk)
 		
 	def solve_hanoi(self):
-		global starting_rod
-
 		self.move_to_rod(2)
 		self.move_to_rod(1)
 		self.move_to_rod(0)
@@ -454,7 +471,10 @@ class Irp6Hanoi:
 		for i in range(4, 0, -1):
 			self.rod_content[starting_rod].append(i)
 
+		self.update_rviz(0)
+
 		print "Wielkosc starting_rod " + str(len(self.rod_content[starting_rod]))
+		print "Starting rod " + str(starting_rod)
 		print str(len(self.step_list)) + " krokow do wykonania"
 
 		for i in range(0, len(self.step_list)):

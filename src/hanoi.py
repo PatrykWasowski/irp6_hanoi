@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-#from irpos import *
-#from math import *
 from hanoi_constants import *
 
 class Hanoi:
@@ -52,13 +50,13 @@ class Hanoi:
 			print napis
 		print ' -----------'
 	
-	def shift_disk (self, source_rod, target_rod):
+	def shift_disk(self, source_rod, target_rod):
 		disk = self.rods[source_rod].pop()		
 		self.rods[target_rod].append(disk)
 		self.show_rods()
 		return disk
 
-	def solve (self, src, dst, buff, n):
+	def solve(self, src, dst, buff, n):
 		if n == 1:
 			disk = self.shift_disk(src, dst)
 			number_of_disks_below = len(self.rods[src])
