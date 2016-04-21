@@ -197,8 +197,14 @@ class Irp6Hanoi:
 			position1 = [Z / FY * (rods[1] - src_center[1]) + actual.position.x, Z / FX * (rods[0] - src_center[0]) + actual.position.y]
 			rod2 = RIGHT
 			position2 = [Z / FY * (rods[3] - src_center[1]) + actual.position.x, Z / FX * (rods[2] - src_center[0]) + actual.position.y]
+			
+			if(rods[3] - rods[1] != 0):
+				ratio = (rods[2] - rods[0]) / (rods[3] - rods[1]) 
+			else:
+				rospy.sleep(2.0)
+				ratio = (rods[2] - rods[0]) / (rods[3] - rods[1]) 
+							
 
-			ratio = (rods[2] - rods[0]) / (rods[3] - rods[1]) 
 			alpha = numpy.arctan(ratio)
 			dx = numpy.cos(alpha) * ROD_DISTANCE			
 			dy = numpy.sin(alpha) * ROD_DISTANCE
